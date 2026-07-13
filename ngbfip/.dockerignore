@@ -1,0 +1,17 @@
+# Docker build optimization
+.git
+.gitignore
+.github
+node_modules
+dist
+__pycache__
+.pytest_cache
+*.pyc
+*.pyo
+.venv
+venv
+logs
+.DS_Store
+.env
+.env.local
+npm-debug.log
