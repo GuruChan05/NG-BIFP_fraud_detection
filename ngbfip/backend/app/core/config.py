@@ -1,0 +1,29 @@
+from pydantic_settings import BaseSettings
+from typing import List
+
+class Settings(BaseSettings):
+    # App
+    APP_NAME: str = "NG-BIFP Fraud Detection"
+    DEBUG: bool = False
+    VERSION: str = "1.0.0"
+    
+    # Database
+    DATABASE_URL: str = "postgresql://user:password@localhost/ng_bifp"
+    SQLALCHEMY_ECHO: bool = False
+    
+    # Security
+    SECRET_KEY: str = "your-secret-key-change-in-production"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    
+    # CORS
+    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173"]
+    
+    # Logging
+    LOG_LEVEL: str = "INFO"
+    LOG_FILE: str = "logs/app.log"
+    
+    class Config:
+        env_file = ".env"
+
+settings = Settings()

@@ -1,0 +1,6 @@
+transaction_id,amount_normalized,merchant_category_encoded,location_encoded,device_trust_score,days_since_device_first_seen,transaction_frequency,amount_deviation,is_fraudulent
+1,0.45,2,1,0.85,100,5,0.2,0
+2,0.12,1,3,0.90,200,8,0.1,0
+3,0.98,2,5,0.30,5,1,2.5,1
+4,0.08,3,1,0.88,95,6,0.15,0
+5,0.99,4,10,0.10,1,0,5.0,1
