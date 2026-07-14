@@ -1,0 +1,39 @@
+.transactions-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.transactions-page h1 {
+  margin: 0;
+  font-size: 28px;
+  color: var(--gray-900);
+}
+
+.risk-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.risk-low {
+  background-color: rgba(34, 197, 94, 0.1);
+  color: var(--success);
+}
+
+.risk-medium {
+  background-color: rgba(245, 158, 11, 0.1);
+  color: var(--warning);
+}
+
+.risk-high {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--danger);
+}
+
+.risk-critical {
+  background-color: rgba(139, 0, 0, 0.1);
+  color: #8b0000;
+}
