@@ -1,1 +1,1 @@
-"""Database Configuration"""
+"""Database Package"""

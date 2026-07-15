@@ -1,9 +1,16 @@
-"""Database Models"""
-from app.db.models.user import User
-from app.db.models.transaction import Transaction
-from app.db.models.alert import Alert
-from app.db.models.device import Device
-from app.db.models.notification import Notification
-from app.db.models.audit_log import AuditLog
+"""Database Models Package"""
+from .user import User
+from .transaction import Transaction
+from .alert import Alert
+from .device import Device
+from .audit_log import AuditLog
+from .notification import Notification
 
-__all__ = ["User", "Transaction", "Alert", "Device", "Notification", "AuditLog"]
+__all__ = [
+    'User',
+    'Transaction',
+    'Alert',
+    'Device',
+    'AuditLog',
+    'Notification',
+]
