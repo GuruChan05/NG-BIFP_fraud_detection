@@ -1,61 +1,71 @@
-version: '3.9'
+version: '3.8'
 
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: ng_bifp_db
+    container_name: ng-bifp-postgres
     environment:
-      POSTGRES_DB: ng_bifp
       POSTGRES_USER: bifp_user
-      POSTGRES_PASSWORD: secure_password_change_me
+      POSTGRES_PASSWORD: bifp_password
+      POSTGRES_DB: ng_bifp
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
-    networks:
-      - ng_bifp_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U bifp_user"]
+      test: ["CMD-SHELL", "pg_isready -U bifp_user -d ng_bifp"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - ng-bifp-network
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: ng_bifp_api
+    container_name: ng-bifp-backend
     environment:
-      DATABASE_URL: postgresql://bifp_user:secure_password_change_me@postgres:5432/ng_bifp
-      SECRET_KEY: your_secret_key_here
-      DEBUG: "False"
+      DATABASE_URL: postgresql://bifp_user:bifp_password@postgres:5432/ng_bifp
+      SECRET_KEY: ${SECRET_KEY:-change-this-to-random-32-character-string}
+      DEBUG: ${DEBUG:-False}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
-    ports:
-      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
-      - ng_bifp_network
-    volumes:
-      - ./backend:/app
+      - ng-bifp-network
+    restart: unless-stopped
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: ng_bifp_web
+    container_name: ng-bifp-frontend
     environment:
       VITE_API_BASE_URL: http://localhost:8000
-    depends_on:
-      - backend
+    volumes:
+      - ./frontend:/app
     ports:
       - "3000:3000"
+    depends_on:
+      - backend
     networks:
-      - ng_bifp_network
+      - ng-bifp-network
+    restart: unless-stopped
 
 volumes:
   postgres_data:
 
 networks:
-  ng_bifp_network:
+  ng-bifp-network:
     driver: bridge

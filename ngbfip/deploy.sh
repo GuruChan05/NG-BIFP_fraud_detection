@@ -1,66 +1,59 @@
 #!/bin/bash
 
-# NG-BIFP Deployment Script
+# NG-BIFP Production Deployment Script
 
 set -e
 
-echo "====================================="
-echo "NG-BIFP Fraud Detection Deployment"
-echo "====================================="
-echo ""
+echo "================================"
+echo "NG-BIFP Fraud Detection Platform"
+echo "Production Deployment"
+echo "================================"
 
-# Check Docker
+# Check for Docker
 if ! command -v docker &> /dev/null; then
-    echo "❌ Docker is not installed. Please install Docker Desktop."
+    echo "ERROR: Docker is not installed"
     exit 1
 fi
-echo "✅ Docker found: $(docker --version)"
 
-# Check Docker Compose
-if ! command -v docker-compose &> /dev/null; then
-    echo "❌ Docker Compose is not installed."
-    exit 1
-fi
-echo "✅ Docker Compose found: $(docker-compose --version)"
+echo "Starting services..."
+cd "$(dirname "$0")"
 
-echo ""
-echo "📦 Building and starting services..."
-echo ""
-
-# Change to project directory
-cd "$(dirname "$0")/ngbfip" || exit
-
-# Create .env files if they don't exist
+# Create .env if it doesn't exist
 if [ ! -f backend/.env ]; then
-    echo "Creating backend/.env from template..."
+    echo "Creating .env file from template..."
     cp backend/.env.example backend/.env
-    echo "⚠️  Please edit backend/.env with your configuration"
+    echo "⚠️  Please update backend/.env with your production settings"
 fi
 
-if [ ! -f frontend/.env ]; then
-    echo "Creating frontend/.env from template..."
-    cp frontend/.env.example frontend/.env
-fi
-
-echo ""
-echo "🚀 Starting Docker Compose services..."
+# Start services
+echo "Building and starting Docker containers..."
 docker-compose -f docker-compose.prod.yml up -d
 
-echo ""
-echo "⏳ Waiting for services to be ready..."
+echo "Waiting for services to be ready..."
 sleep 10
 
+# Run database migrations
+echo "Running database migrations..."
+docker-compose -f docker-compose.prod.yml exec -T backend alembic upgrade head || true
+
+# Initialize database if needed
+echo "Initializing database tables..."
+docker-compose -f docker-compose.prod.yml exec -T backend python -m app.db.init_db || true
+
 echo ""
+echo "================================"
 echo "✅ Deployment Complete!"
+echo "================================"
 echo ""
-echo "Access the application:"
-echo "  Frontend: http://localhost:3000"
-echo "  Backend API: http://localhost:8000"
-echo "  API Docs: http://localhost:8000/docs"
+echo "Services running:"
+echo "  🌐 Frontend: http://localhost:3000"
+echo "  📚 API Docs: http://localhost:8000/docs"
+echo "  📖 ReDoc: http://localhost:8000/redoc"
+echo "  🗄️  Database: localhost:5432"
 echo ""
-echo "To view logs:"
-echo "  docker-compose -f docker-compose.prod.yml logs -f"
+echo "View logs:"
+echo "  docker-compose -f ngbfip/docker-compose.prod.yml logs -f"
 echo ""
-echo "To stop services:"
-echo "  docker-compose -f docker-compose.prod.yml down"
+echo "Stop services:"
+echo "  bash ngbfip/stop.sh"
 echo ""

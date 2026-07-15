@@ -1,6 +1,10 @@
 #!/bin/bash
 
-# Stop all services
+# NG-BIFP Stop Services Script
+
 echo "Stopping NG-BIFP services..."
+cd "$(dirname "$0")"
+
 docker-compose -f docker-compose.prod.yml down
-echo "✅ All services stopped"
+
+echo "✅ Services stopped"

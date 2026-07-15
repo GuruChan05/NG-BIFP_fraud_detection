@@ -19,6 +19,8 @@ app = FastAPI(
     title="NG-BIFP Fraud Detection API",
     description="Next-Generation Bank Integrated Fraud Prevention",
     version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
 )
 
 # CORS Middleware
@@ -44,14 +46,32 @@ app.include_router(notifications.router, prefix="/api/v1/notifications", tags=["
 app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["Dashboard"])
 app.include_router(risk.router, prefix="/api/v1/risk", tags=["Risk"])
 
+
 @app.on_event("startup")
 async def startup_event():
-    logger.info("Application startup")
+    """Initialize application on startup."""
+    logger.info("="*50)
+    logger.info("NG-BIFP Fraud Detection API Starting")
+    logger.info(f"Environment: {'Development' if settings.DEBUG else 'Production'}")
+    logger.info(f"Database: {settings.DATABASE_URL}")
+    logger.info("="*50)
+    logger.info("Application startup complete")
+
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    logger.info("Application shutdown")
+    """Cleanup on application shutdown."""
+    logger.info("="*50)
+    logger.info("NG-BIFP Fraud Detection API Shutting Down")
+    logger.info("="*50)
+
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=settings.DEBUG,
+        log_level=settings.LOG_LEVEL.lower()
+    )
