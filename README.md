@@ -1,480 +1,350 @@
-# NG-BIFP: Next-Generation Bank Integrated Fraud Prevention System
+# NG-BIFP Fraud Detection Platform
 
-## 🚀 Quick Deployment
+**Next-Generation Bank Integrated Fraud Prevention** - A production-ready AI-powered fraud detection platform built with React, FastAPI, and PostgreSQL.
 
-```bash
-# Clone and deploy in 3 commands
-git clone https://github.com/GuruChan05/NG-BIFP_fraud_detection.git
-cd NG-BIFP_fraud_detection
-bash ngbfip/deploy.sh
-```
+## 🎯 Overview
 
-**Access:**
-- 🌐 Frontend: http://localhost:3000
-- 📚 API Docs: http://localhost:8000/docs
-- 🗄️ Database: localhost:5432
+NG-BIFP is an enterprise-grade fraud detection system featuring:
 
-## 📋 Table of Contents
-
-- [Overview](#overview)
-- [Features](#features)
-- [Architecture](#architecture)
-- [Quick Start](#quick-start)
-- [Deployment](#deployment)
-- [Project Structure](#project-structure)
-- [API Endpoints](#api-endpoints)
-- [Technologies](#technologies)
-- [Contributing](#contributing)
-- [License](#license)
-
-## 📖 Overview
-
-NG-BIFP is an **enterprise-grade fraud detection and prevention system** designed for banking institutions. It combines advanced machine learning models, real-time transaction monitoring, and intelligent device trust scoring to provide comprehensive fraud protection.
-
-### Key Capabilities
-- ✅ Real-time transaction analysis and risk scoring
-- ✅ Machine learning-powered fraud detection
-- ✅ Device trust assessment and management
-- ✅ Comprehensive audit trails and compliance logging
-- ✅ Professional web dashboard for monitoring
-- ✅ RESTful API for third-party integration
-
-## ✨ Features
-
-### 🔐 Security & Authentication
-- JWT-based authentication
-- Password hashing with bcrypt
-- Role-based access control (RBAC)
-- Audit logging for all activities
-
-### 🤖 Machine Learning
-- **Isolation Forest**: Unsupervised anomaly detection for transaction fraud
-- **Random Forest**: Device trust classification model
-- **Risk Fusion Engine**: Multi-signal risk aggregation
-- Real-time model inference
-
-### 📊 Analytics & Monitoring
-- Transaction risk scoring (0-1 scale)
-- Risk level classification (low, medium, high, critical)
-- Device consistency analysis
-- Behavioral pattern recognition
-- Alert generation and tracking
-
-### 💾 Data Management
-- PostgreSQL relational database
-- SQLAlchemy ORM with migrations
-- Comprehensive data models
-- Transaction history and audit logs
-
-### 🎨 User Interface
-- React 18 modern frontend
-- Responsive design
-- Real-time data updates
-- Intuitive dashboard
+- **Secure Authentication**: JWT-based authentication with bcrypt password hashing
+- **Machine Learning**: ML-powered fraud detection with risk scoring
+- **Real-time Dashboard**: Interactive glassmorphism UI with live statistics
+- **Transaction Analysis**: Comprehensive transaction risk assessment
+- **Device Trust**: Device fingerprinting and trust scoring
+- **Alert Management**: Automated alert generation and resolution tracking
+- **Audit Logging**: Complete audit trail for compliance
+- **Role-based Access**: User, Analyst, and Admin roles
 
 ## 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────┐
-│          FRONTEND (React 18)            │
-│  Port 3000 • Vite • TanStack Query    │
-└────────────────┬────────────────────────┘
-                 │ HTTP/REST
-┌────────────────▼────────────────────────┐
-│      BACKEND (FastAPI/Uvicorn)         │
-│  Port 8000 • Python 3.11              │
-│  ├─ Auth Service (JWT)                 │
-│  ├─ Transaction Processing             │
-│  ├─ ML Model Inference                 │
-│  ├─ Alert Management                   │
-│  └─ Audit Logging                      │
-└────────────────┬────────────────────────┘
-                 │ SQL
-┌────────────────▼────────────────────────┐
-│   DATABASE (PostgreSQL 16)             │
-│  Port 5432 • Persistent Storage       │
-│  ├─ Users & Auth                       │
-│  ├─ Transactions                       │
-│  ├─ Alerts                             │
-│  ├─ Devices                            │
-│  └─ Audit Logs                         │
-└─────────────────────────────────────────┘
+┌─────────────────┐
+│  React 18 SPA   │ (Glassmorphism UI)
+│  TypeScript     │
+│  Tailwind CSS   │
+└────────┬────────┘
+         │ HTTP/REST
+         ↓
+┌─────────────────────────────────┐
+│   FastAPI Backend               │
+│   - Authentication (JWT)        │
+│   - Business Logic Services     │
+│   - ML Model Integration        │
+└────────┬────────────────────────┘
+         │ SQL
+         ↓
+┌─────────────────┐
+│   PostgreSQL    │
+│   Database      │
+└─────────────────┘
 ```
 
-## 🎯 Quick Start
+## 📋 Tech Stack
+
+### Frontend
+- **React 18**: Modern UI library
+- **TypeScript**: Type-safe development
+- **Vite**: Fast build tool
+- **Tailwind CSS**: Utility-first CSS
+- **React Router**: Client-side routing
+- **Axios**: HTTP client
+- **Lucide React**: Icon library
+
+### Backend
+- **FastAPI**: Modern async web framework
+- **SQLAlchemy**: ORM for database operations
+- **Pydantic**: Data validation
+- **PostgreSQL**: Relational database
+- **python-jose**: JWT token generation
+- **passlib**: Password hashing
+- **scikit-learn**: ML models
+
+## 🚀 Quick Start
 
 ### Prerequisites
-- Docker Desktop (includes Docker & Docker Compose)
-- Git
-- 2GB RAM minimum
-- Ports 3000, 8000, 5432 available
+- Docker & Docker Compose
+- Node.js 18+
+- Python 3.11+
+- PostgreSQL 16+ (if running without Docker)
 
-### Step-by-Step
+### Development Setup
 
-**1. Clone Repository**
+#### 1. Clone the Repository
 ```bash
 git clone https://github.com/GuruChan05/NG-BIFP_fraud_detection.git
 cd NG-BIFP_fraud_detection
 ```
 
-**2. One-Command Deploy**
+#### 2. Backend Setup
 ```bash
-bash ngbfip/deploy.sh
-```
-
-**3. Verify Services**
-```bash
-# Check logs
-docker-compose -f ngbfip/docker-compose.prod.yml logs -f
-
-# Wait for "Application startup" message
-```
-
-**4. Access Application**
-- Frontend: http://localhost:3000
-- API Swagger UI: http://localhost:8000/docs
-- API ReDoc: http://localhost:8000/redoc
-
-## 📦 Deployment
-
-### Docker Compose (Recommended)
-
-```bash
-cd ngbfip
-
-# Start all services
-docker-compose -f docker-compose.prod.yml up -d
-
-# View logs
-docker-compose -f docker-compose.prod.yml logs -f
-
-# Stop services
-docker-compose -f docker-compose.prod.yml down
-```
-
-### Environment Configuration
-
-```bash
-# Create .env from template
-cp ngbfip/backend/.env.example ngbfip/backend/.env
-
-# Edit with your settings
-nano ngbfip/backend/.env
-```
-
-**Required Environment Variables:**
-```bash
-DATABASE_URL=postgresql://bifp_user:password@postgres:5432/ng_bifp
-SECRET_KEY=your-secret-key-min-32-chars
-DEBUG=False
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-```
-
-### Database Setup
-
-```bash
-# Run migrations
-docker-compose -f ngbfip/docker-compose.prod.yml exec backend alembic upgrade head
-
-# Access database
-docker-compose -f ngbfip/docker-compose.prod.yml exec postgres \
-  psql -U bifp_user -d ng_bifp
-```
-
-## 📁 Project Structure
-
-```
-NG-BIFP_fraud_detection/
-├── ngbfip/
-│   ├── frontend/                 # React application
-│   │   ├── src/
-│   │   │   ├── components/       # Reusable UI components
-│   │   │   ├── hooks/            # Custom React hooks
-│   │   │   ├── pages/            # Page components
-│   │   │   ├── lib/              # Utilities (API client, etc)
-│   │   │   └── main.tsx          # Application entry point
-│   │   ├── Dockerfile            # Frontend container image
-│   │   └── package.json          # Dependencies
-│   │
-│   ├── backend/                  # FastAPI application
-│   │   ├── app/
-│   │   │   ├── main.py           # FastAPI entry point
-│   │   │   ├── core/             # Configuration & security
-│   │   │   ├── db/               # Database models & setup
-│   │   │   ├── api/v1/           # API endpoints
-│   │   │   ├── services/         # Business logic
-│   │   │   ├── schemas/          # Pydantic validation
-│   │   │   └── ml/               # ML models
-│   │   ├── Dockerfile            # Backend container image
-│   │   └── requirements.txt      # Python dependencies
-│   │
-│   ├── datasets/                 # ML training data
-│   │   ├── fraud_detection_dataset.csv
-│   │   ├── fraud_train_processed.csv
-│   │   ├── fraud_test_processed.csv
-│   │   └── behavior_dataset_with_scores.csv
-│   │
-│   ├── docker-compose.prod.yml   # Orchestration
-│   ├── deploy.sh                 # Deployment script
-│   ├── stop.sh                   # Stop services
-│   ├── setup-dev.sh              # Development setup
-│   ├── DEPLOYMENT.md             # Detailed deployment guide
-│   └── QUICKSTART.md             # Quick reference
-│
-├── .github/
-│   └── workflows/
-│       └── deploy.yml            # CI/CD pipeline
-│
-└── README.md                     # This file
-```
-
-## 🔌 API Endpoints
-
-### Authentication
-```
-POST   /api/v1/auth/login        # User login
-POST   /api/v1/auth/logout       # User logout
-```
-
-### Users
-```
-GET    /api/v1/users/me          # Get current user
-GET    /api/v1/users/{id}        # Get user by ID
-POST   /api/v1/users/            # Create user
-PUT    /api/v1/users/{id}        # Update user
-DELETE /api/v1/users/{id}        # Delete user
-```
-
-### Transactions
-```
-GET    /api/v1/transactions/            # List all transactions
-GET    /api/v1/transactions/{id}        # Get transaction details
-POST   /api/v1/transactions/            # Create transaction
-GET    /api/v1/transactions/user/{id}   # Get user transactions
-```
-
-### Risk Analysis
-```
-POST   /api/v1/risk/analyze      # Analyze transaction risk
-GET    /api/v1/risk/trends       # Get risk trends
-```
-
-### Alerts
-```
-GET    /api/v1/alerts/                  # List alerts
-GET    /api/v1/alerts/{id}              # Get alert details
-POST   /api/v1/alerts/                  # Create alert
-PUT    /api/v1/alerts/{id}/resolve      # Resolve alert
-```
-
-### Devices
-```
-GET    /api/v1/devices/                 # List devices
-GET    /api/v1/devices/{id}             # Get device details
-POST   /api/v1/devices/                 # Register device
-PUT    /api/v1/devices/{id}/trust       # Update device trust
-```
-
-### Dashboard
-```
-GET    /api/v1/dashboard/overview       # Dashboard summary
-GET    /api/v1/dashboard/statistics     # Detailed statistics
-```
-
-### Health
-```
-GET    /api/v1/health/                  # Health check
-```
-
-## 🛠️ Technologies
-
-### Backend Stack
-- **Framework**: FastAPI 0.104
-- **Server**: Uvicorn
-- **Database**: PostgreSQL 16
-- **ORM**: SQLAlchemy 2.0
-- **Authentication**: JWT + bcrypt
-- **ML Libraries**: scikit-learn, pandas, numpy
-- **Language**: Python 3.11
-
-### Frontend Stack
-- **Framework**: React 18
-- **Build Tool**: Vite
-- **Language**: TypeScript
-- **HTTP Client**: Axios
-- **State Management**: TanStack Query (React Query)
-- **Routing**: React Router v6
-
-### Infrastructure
-- **Containerization**: Docker
-- **Orchestration**: Docker Compose
-- **Database**: PostgreSQL
-- **CI/CD**: GitHub Actions
-
-## 📊 Machine Learning Models
-
-### Isolation Forest
-- **Purpose**: Unsupervised anomaly detection
-- **Use Case**: Detect unusual transaction patterns
-- **File**: `app/ml/isolation_forest_model.py`
-- **Output**: Anomaly score (0-1)
-
-### Random Forest Device Trust
-- **Purpose**: Supervised device classification
-- **Use Case**: Assess device reliability
-- **File**: `app/ml/random_forest_device_trust.py`
-- **Output**: Trust score (0-1)
-
-### Risk Fusion Engine
-- **Purpose**: Combine multiple risk signals
-- **Weights**:
-  - Transaction Risk: 40%
-  - Device Trust: 30%
-  - Behavioral Anomaly: 30%
-- **File**: `app/ml/risk_fusion_engine.py`
-- **Output**: Final risk score (0-1) + risk level
-
-## 🔧 Development Setup
-
-### Local Development
-
-```bash
-# Install dependencies
-bash ngbfip/setup-dev.sh
-
-# Backend
 cd ngbfip/backend
-python -m uvicorn app.main:app --reload
 
-# Frontend (new terminal)
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Copy environment file
+cp .env.example .env
+
+# Initialize database
+python -m app.db.init_db
+
+# Run backend
+python app/main.py
+```
+
+Backend will be available at: `http://localhost:8000`
+API Documentation: `http://localhost:8000/docs`
+
+#### 3. Frontend Setup
+```bash
 cd ngbfip/frontend
+
+# Install dependencies
+npm install
+
+# Update .env.local if needed
+echo "VITE_API_BASE_URL=http://localhost:8000" > .env.local
+
+# Run frontend
 npm run dev
 ```
 
-### Testing
+Frontend will be available at: `http://localhost:5173`
 
+### Production Deployment
+
+#### Using Docker Compose
 ```bash
-# Backend tests
+# Navigate to project root
+cd ngbfip
+
+# Make deployment script executable
+chmod +x deploy.sh stop.sh
+
+# Deploy
+./deploy.sh
+```
+
+Services will be available at:
+- Frontend: `http://localhost:3000`
+- Backend API: `http://localhost:8000`
+- API Docs: `http://localhost:8000/docs`
+
+## 🔐 Environment Variables
+
+### Backend (.env)
+```bash
+# Application
+APP_NAME=NG-BIFP Fraud Detection
+DEBUG=False  # Set to True for development
+VERSION=1.0.0
+
+# Database
+DATABASE_URL=postgresql://bifp_user:bifp_password@localhost:5432/ng_bifp
+SQLALCHEMY_ECHO=False
+
+# Security (CHANGE IN PRODUCTION)
+SECRET_KEY=your-super-secret-key-change-this-in-production-to-random-32-chars
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+# CORS
+CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+
+# Logging
+LOG_LEVEL=INFO
+LOG_FILE=logs/app.log
+```
+
+### Frontend (.env.local)
+```bash
+VITE_API_BASE_URL=http://localhost:8000
+```
+
+## 📚 API Endpoints
+
+### Authentication
+- `POST /api/v1/auth/register` - Register new user
+- `POST /api/v1/auth/login` - Login user
+- `POST /api/v1/auth/logout` - Logout user
+- `POST /api/v1/auth/refresh` - Refresh access token
+- `POST /api/v1/auth/forgot-password` - Request password reset
+
+### Users
+- `GET /api/v1/users/me` - Get current user
+- `GET /api/v1/users/{user_id}` - Get user by ID
+- `PUT /api/v1/users/{user_id}` - Update user
+
+### Transactions
+- `GET /api/v1/transactions/` - List transactions
+- `GET /api/v1/transactions/{transaction_id}` - Get transaction
+- `POST /api/v1/transactions/` - Create transaction
+
+### Risk Analysis
+- `POST /api/v1/risk/analyze` - Analyze transaction risk
+- `GET /api/v1/risk/trends` - Get risk trends
+
+### Alerts
+- `GET /api/v1/alerts/` - List alerts
+- `GET /api/v1/alerts/{alert_id}` - Get alert
+- `PUT /api/v1/alerts/{alert_id}/resolve` - Resolve alert
+
+### Devices
+- `GET /api/v1/devices/` - List devices
+- `POST /api/v1/devices/` - Register device
+- `PUT /api/v1/devices/{device_id}/trust` - Update device trust
+
+### Dashboard
+- `GET /api/v1/dashboard/overview` - Dashboard overview
+- `GET /api/v1/dashboard/statistics` - Detailed statistics
+
+## 🧪 Testing
+
+### Backend Tests
+```bash
 cd ngbfip/backend
+
+# Run tests (when test suite is added)
 pytest
 
-# Frontend tests
+# With coverage
+pytest --cov
+```
+
+### Frontend Tests
+```bash
 cd ngbfip/frontend
+
+# Run tests (when test suite is added)
 npm test
+
+# With coverage
+npm test -- --coverage
 ```
 
-## 📈 Scaling
+## 🔍 Audit Report Summary
 
-### Horizontal Scaling
-```yaml
-# Multiple backend instances
-services:
-  backend:
-    deploy:
-      replicas: 3
-```
+### ✅ Implemented
+- [x] Complete authentication system (Register, Login, JWT)
+- [x] Comprehensive database models with relationships
+- [x] Full REST API with error handling
+- [x] Service layer with business logic
+- [x] React frontend with authentication flow
+- [x] Dashboard with statistics
+- [x] Glassmorphism UI design
+- [x] Docker containerization
+- [x] Audit logging system
+- [x] Role-based access control
+- [x] Request/response validation with Pydantic
+- [x] CORS configuration
+- [x] Health check endpoints
+- [x] Comprehensive logging
+- [x] Environment configuration
 
-### Database Optimization
-- Add connection pooling (PgBouncer)
-- Enable query caching
-- Create indexes on frequently queried columns
-- Archive old records
+### 🔧 Configuration Files
+- Backend: `.env.example` → `.env`
+- Frontend: `.env.local` (pre-configured)
+- Docker: `docker-compose.prod.yml`
+- Database: PostgreSQL initialization included
 
-### Load Balancing
-- Use Nginx as reverse proxy
-- Configure round-robin load balancing
-- Implement sticky sessions for authentication
+## 📊 Database Schema
 
-## 🐛 Troubleshooting
+### Tables
+- `users` - User accounts and profiles
+- `transactions` - Transaction records with risk scores
+- `alerts` - Fraud detection alerts
+- `devices` - Device fingerprints and trust scores
+- `notifications` - User notifications
+- `audit_logs` - Compliance audit trail
 
-### Common Issues
+## 🛡️ Security Features
 
-**Port already in use**
+- **Password Security**: Bcrypt with configurable rounds
+- **JWT Authentication**: Secure token-based auth
+- **CORS Protection**: Configurable origin whitelist
+- **SQL Injection Prevention**: SQLAlchemy parameterized queries
+- **Request Validation**: Pydantic schema validation
+- **Audit Logging**: Complete action tracking
+- **Rate Limiting**: Ready for implementation
+- **HTTPS Ready**: Docker/production ready
+
+## 📈 Performance Optimizations
+
+- Database connection pooling
+- Query optimization with indexes
+- Async/await patterns
+- Frontend code splitting
+- Lazy loading of components
+- Caching-ready architecture
+
+## 🐳 Docker Management
+
+### Start Services
 ```bash
-lsof -ti:3000 | xargs kill -9
-lsof -ti:8000 | xargs kill -9
-lsof -ti:5432 | xargs kill -9
+cd ngbfip
+./deploy.sh
 ```
 
-**Docker not running**
+### Stop Services
 ```bash
-# macOS/Windows
-open -a Docker
-
-# Linux
-sudo systemctl start docker
+cd ngbfip
+./stop.sh
 ```
 
-**Database connection failed**
+### View Logs
 ```bash
-# Check PostgreSQL is running
-docker ps | grep postgres
-
-# View logs
-docker-compose -f ngbfip/docker-compose.prod.yml logs postgres
+docker-compose -f docker-compose.prod.yml logs -f
 ```
 
-**Frontend can't reach API**
+### Access Container
 ```bash
-# Verify API_BASE_URL
-echo $VITE_API_BASE_URL
-
-# Check backend is running
-curl http://localhost:8000/api/v1/health/
+docker-compose -f docker-compose.prod.yml exec backend bash
+docker-compose -f docker-compose.prod.yml exec frontend sh
 ```
 
-## 📝 Contributing
+## 📝 Default Test Credentials
 
-1. Fork the repository
-2. Create feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'Add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Open Pull Request
+After initial setup, you can use:
+- **Email**: test@example.com
+- **Password**: TestPassword123
 
-### Code Standards
-- Backend: PEP 8 with Black formatter
-- Frontend: ESLint + Prettier
-- Commit messages: Conventional Commits
+> Note: Create an actual user through the registration form for production use.
+
+## 🚨 Production Checklist
+
+- [ ] Update `SECRET_KEY` in backend `.env`
+- [ ] Set `DEBUG=False` in backend `.env`
+- [ ] Update `DATABASE_URL` for production database
+- [ ] Configure `CORS_ORIGINS` for your domain
+- [ ] Update `VITE_API_BASE_URL` in frontend
+- [ ] Configure HTTPS/SSL certificates
+- [ ] Set up backup strategy for database
+- [ ] Configure logging aggregation
+- [ ] Set up monitoring and alerting
+- [ ] Create admin user account
+- [ ] Run security audit
+- [ ] Set up CI/CD pipeline
+
+## 📞 Support
+
+For issues, questions, or contributions:
+1. Check existing issues on GitHub
+2. Review API documentation at `/docs`
+3. Check logs in `ngbfip/backend/logs/app.log`
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is proprietary software.
 
-## 🤝 Support
+## 🎉 Acknowledgments
 
-- **Documentation**: [DEPLOYMENT.md](ngbfip/DEPLOYMENT.md)
-- **Quick Start**: [QUICKSTART.md](ngbfip/QUICKSTART.md)
-- **Issues**: https://github.com/GuruChan05/NG-BIFP_fraud_detection/issues
-- **Discussions**: https://github.com/GuruChan05/NG-BIFP_fraud_detection/discussions
-
-## 👨‍💼 Author
-
-**GuruChan05**
-- GitHub: [@GuruChan05](https://github.com/GuruChan05)
-- Email: ajahguru11@gmail.com
-
-## 🎯 Roadmap
-
-- [ ] Enhanced ML model training pipeline
-- [ ] Real-time notification system
-- [ ] Advanced analytics dashboard
-- [ ] Mobile app integration
-- [ ] Cloud deployment templates (AWS, GCP, Azure)
-- [ ] GraphQL API
-- [ ] WebSocket support for real-time updates
-- [ ] Multi-language support
-- [ ] Advanced RBAC system
-- [ ] Compliance reporting (PCI-DSS, GDPR)
-
-## 🙏 Acknowledgments
-
-- FastAPI for the excellent web framework
-- React team for the powerful UI library
-- PostgreSQL community
-- scikit-learn for ML capabilities
-- All contributors and supporters
+Built with modern web technologies for enterprise-grade fraud detection.
 
 ---
 
-**Made with ❤️ for fraud detection excellence**
+**Last Updated**: 2026-07-15
+**Version**: 1.0.0
