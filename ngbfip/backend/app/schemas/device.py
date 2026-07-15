@@ -1,19 +1,41 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
+from enum import Enum
 
-class DeviceBase(BaseModel):
+
+class DeviceType(str, Enum):
+    MOBILE = "mobile"
+    DESKTOP = "desktop"
+    TABLET = "tablet"
+    UNKNOWN = "unknown"
+
+
+class TrustStatus(str, Enum):
+    UNKNOWN = "unknown"
+    TRUSTED = "trusted"
+    UNTRUSTED = "untrusted"
+
+
+class DeviceCreate(BaseModel):
+    """Create device request"""
     device_id: str
-    device_type: str
+    device_type: DeviceType
     os: str
     browser: str
 
-class DeviceCreate(DeviceBase):
-    pass
+    class Config:
+        from_attributes = True
 
-class DeviceResponse(DeviceBase):
+
+class DeviceResponse(BaseModel):
+    """Device response model"""
     id: int
+    device_id: str
     user_id: int
+    device_type: str
+    os: str
+    browser: str
     trust_score: float
     is_trusted: str
     last_seen: datetime
