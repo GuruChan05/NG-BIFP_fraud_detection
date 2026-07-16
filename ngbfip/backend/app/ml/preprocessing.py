@@ -11,13 +11,13 @@ class DataPreprocessor:
         """
         Preprocess raw transaction data for ML models
         """
-        # TODO: Implement preprocessing logic
-        return np.array([])
+        df = pd.DataFrame([transaction_data])
+        df = self.handle_missing_values(df)
+        df = self.encode_categorical_features(df)
+        return df.to_numpy()
 
     def handle_missing_values(self, df: pd.DataFrame) -> pd.DataFrame:
-        # TODO: Implement missing value handling
-        return df
+        return df.fillna(0)
 
     def encode_categorical_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        # TODO: Implement categorical encoding
-        return df
+        return pd.get_dummies(df)

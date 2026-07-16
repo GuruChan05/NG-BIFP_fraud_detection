@@ -18,7 +18,7 @@ interface AuthState {
   setToken: (token: string) => void
 }
 
-export const useAuthStore = create<AuthState>(
+export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       user: null,

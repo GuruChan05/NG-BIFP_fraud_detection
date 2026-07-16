@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float
+from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base import Base
 
@@ -13,5 +14,7 @@ class Device(Base):
     browser = Column(String)
     trust_score = Column(Float, default=0.5)
     is_trusted = Column(String, default="unknown")  # unknown, trusted, untrusted
-    last_seen = Column(DateTime, default=datetime.utcnow)
+    last_seen = Column(DateTime, default=datetime.utcnow, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="devices")

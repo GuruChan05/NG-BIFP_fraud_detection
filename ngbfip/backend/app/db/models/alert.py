@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
+from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base import Base
 
@@ -11,5 +12,8 @@ class Alert(Base):
     alert_type = Column(String)  # suspicious_activity, high_risk, etc.
     severity = Column(String)  # low, medium, high, critical
     description = Column(String)
-    is_resolved = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    is_resolved = Column(Boolean, default=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    user = relationship("User", back_populates="alerts")
+    transaction = relationship("Transaction", back_populates="alerts")

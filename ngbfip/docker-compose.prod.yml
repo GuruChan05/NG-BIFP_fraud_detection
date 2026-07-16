@@ -5,9 +5,9 @@ services:
     image: postgres:16-alpine
     container_name: ng_bifp_db
     environment:
-      POSTGRES_DB: ng_bifp
-      POSTGRES_USER: bifp_user
-      POSTGRES_PASSWORD: secure_password_change_me
+      POSTGRES_DB: ${POSTGRES_DB:-ng_bifp}
+      POSTGRES_USER: ${POSTGRES_USER:-bifp_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -26,8 +26,8 @@ services:
       dockerfile: Dockerfile
     container_name: ng_bifp_api
     environment:
-      DATABASE_URL: postgresql://bifp_user:secure_password_change_me@postgres:5432/ng_bifp
-      SECRET_KEY: your_secret_key_here
+      DATABASE_URL: postgresql://${POSTGRES_USER:-bifp_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-ng_bifp}
+      SECRET_KEY: ${SECRET_KEY}
       DEBUG: "False"
     depends_on:
       postgres:

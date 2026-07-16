@@ -1,5 +1,4 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { useAuthStore } from '@/stores/auth.store'
 import Layout from '@/components/Layout'
 import LoginPage from '@/pages/LoginPage'
 import DashboardPage from '@/pages/DashboardPage'
@@ -10,8 +9,6 @@ import AnalyticsPage from '@/pages/AnalyticsPage'
 import ProtectedRoute from '@/components/ProtectedRoute'
 
 function App() {
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
-
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />

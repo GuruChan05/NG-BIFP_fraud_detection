@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.logging import logger
 from app.core.middleware import LoggingMiddleware
+from app.db.base import Base, engine
+from app.db.models.user import User
 from app.api.v1 import (
     auth,
     users,
@@ -46,6 +48,7 @@ app.include_router(risk.router, prefix="/api/v1/risk", tags=["Risk"])
 
 @app.on_event("startup")
 async def startup_event():
+    Base.metadata.create_all(bind=engine)
     logger.info("Application startup")
 
 @app.on_event("shutdown")
