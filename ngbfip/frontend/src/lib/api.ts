@@ -1,102 +1,82 @@
-import axios, { AxiosInstance, AxiosError } from 'axios'
-import { useAuthStore } from '@/stores/auth.store'
+import axios from 'axios'
+import { getAuthToken } from './auth'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1'
 
-const api: AxiosInstance = axios.create({
-  baseURL: `${API_BASE_URL}/api/v1`,
+const api = axios.create({
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
 })
 
-// Request interceptor to add token
-api.interceptors.request.use(
-  (config) => {
-    const token = useAuthStore.getState().token
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-    return config
-  },
-  (error: AxiosError) => {
-    return Promise.reject(error)
+api.interceptors.request.use((config) => {
+  const token = getAuthToken()
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
   }
-)
+  return config
+})
 
-// Response interceptor for error handling
-api.interceptors.response.use(
-  (response) => response,
-  (error: AxiosError) => {
-    if (error.response?.status === 401) {
-      useAuthStore.getState().logout()
-      window.location.href = '/login'
-    }
-    return Promise.reject(error)
-  }
-)
+export interface DashboardOverview {
+  total_transactions: number
+  fraud_cases: number
+  active_users: number
+  todays_activity: number
+  average_risk_score: number
+  trusted_devices: number
+  high_risk_transactions: number
+  resolved_alerts: number
+}
+
+export interface RiskDistribution {
+  risk_level: string
+  count: number
+  percentage: number
+}
+
+export interface MonthlyStatistic {
+  month: string
+  transactions: number
+  fraud_cases: number
+  risk_score: number
+}
+
+export interface WeeklyStatistic {
+  week: string
+  transactions: number
+  fraud_cases: number
+  risk_score: number
+}
+
+export interface RecentActivity {
+  id: number
+  user_id: number
+  amount: number
+  transaction_type: string
+  merchant: string
+  risk_score: number
+  is_fraudulent: string
+  created_at: string
+}
+
+export interface DashboardSummary {
+  overview: DashboardOverview
+  risk_distribution: RiskDistribution[]
+  monthly_statistics: MonthlyStatistic[]
+  weekly_statistics: WeeklyStatistic[]
+  recent_activity: RecentActivity[]
+}
+
+export const dashboardAPI = {
+  getOverview: () => api.get<DashboardOverview>('/dashboard/overview'),
+  getStatistics: () => api.get<any>('/dashboard/statistics'),
+  getRiskDistribution: () => api.get<RiskDistribution[]>('/dashboard/risk-distribution'),
+  getMonthlyStatistics: () => api.get<MonthlyStatistic[]>('/dashboard/monthly-statistics'),
+  getWeeklyStatistics: () => api.get<WeeklyStatistic[]>('/dashboard/weekly-statistics'),
+  getRecentActivity: (limit?: number) =>
+    api.get<RecentActivity[]>('/dashboard/recent-activity', { params: { limit } }),
+  getSummary: () => api.get<DashboardSummary>('/dashboard/summary'),
+}
 
 export default api
-
-// Auth API
-export const authAPI = {
-  login: (email: string, password: string) =>
-    api.post('/auth/login', { email, password }),
-  logout: () => api.post('/auth/logout'),
-  getMe: () => api.get('/users/me'),
-}
-
-// Users API
-export const usersAPI = {
-  getMe: () => api.get('/users/me'),
-  getUser: (id: string) => api.get(`/users/${id}`),
-  createUser: (data: any) => api.post('/users', data),
-  updateUser: (id: string, data: any) => api.put(`/users/${id}`, data),
-  deleteUser: (id: string) => api.delete(`/users/${id}`),
-}
-
-// Transactions API
-export const transactionsAPI = {
-  list: (params?: any) => api.get('/transactions', { params }),
-  get: (id: string) => api.get(`/transactions/${id}`),
-  create: (data: any) => api.post('/transactions', data),
-  update: (id: string, data: any) => api.put(`/transactions/${id}`, data),
-  getUserTransactions: (userId: string) =>
-    api.get(`/transactions/user/${userId}`),
-}
-
-// Risk API
-export const riskAPI = {
-  analyze: (data: any) => api.post('/risk/analyze', data),
-  getTrends: (params?: any) => api.get('/risk/trends', { params }),
-}
-
-// Alerts API
-export const alertsAPI = {
-  list: (params?: any) => api.get('/alerts', { params }),
-  get: (id: string) => api.get(`/alerts/${id}`),
-  create: (data: any) => api.post('/alerts', data),
-  resolve: (id: string, data: any) =>
-    api.put(`/alerts/${id}/resolve`, data),
-}
-
-// Devices API
-export const devicesAPI = {
-  list: (params?: any) => api.get('/devices', { params }),
-  get: (id: string) => api.get(`/devices/${id}`),
-  create: (data: any) => api.post('/devices', data),
-  updateTrust: (id: string, data: any) =>
-    api.put(`/devices/${id}/trust`, data),
-}
-
-// Dashboard API
-export const dashboardAPI = {
-  getOverview: () => api.get('/dashboard/overview'),
-  getStatistics: (params?: any) =>
-    api.get('/dashboard/statistics', { params }),
-}
-
-// Health API
-export const healthAPI = {
-  check: () => api.get('/health'),
-}
