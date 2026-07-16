@@ -1,3 +1,4 @@
+import { useQuery, useMutation } from '@tanstack/react-query'
 import axios from 'axios'
 import { getAuthToken } from './auth'
 
@@ -18,6 +19,38 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+export interface Transaction {
+  id: number
+  user_id: number
+  amount: number
+  transaction_type: string
+  merchant: string
+  merchant_category?: string
+  location?: string
+  device_id?: string
+  risk_score: number
+  is_fraudulent: string
+  created_at: string
+}
+
+export interface TransactionListResponse {
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+  data: Transaction[]
+}
+
+export interface TransactionStats {
+  total_transactions: number
+  total_amount: number
+  average_amount: number
+  fraud_count: number
+  fraud_percentage: number
+  legitimate_count: number
+  unknown_count: number
+}
+
 export interface DashboardOverview {
   total_transactions: number
   fraud_cases: number
@@ -29,54 +62,31 @@ export interface DashboardOverview {
   resolved_alerts: number
 }
 
-export interface RiskDistribution {
-  risk_level: string
-  count: number
-  percentage: number
-}
-
-export interface MonthlyStatistic {
-  month: string
-  transactions: number
-  fraud_cases: number
-  risk_score: number
-}
-
-export interface WeeklyStatistic {
-  week: string
-  transactions: number
-  fraud_cases: number
-  risk_score: number
-}
-
-export interface RecentActivity {
-  id: number
-  user_id: number
-  amount: number
-  transaction_type: string
-  merchant: string
-  risk_score: number
-  is_fraudulent: string
-  created_at: string
-}
-
-export interface DashboardSummary {
-  overview: DashboardOverview
-  risk_distribution: RiskDistribution[]
-  monthly_statistics: MonthlyStatistic[]
-  weekly_statistics: WeeklyStatistic[]
-  recent_activity: RecentActivity[]
+export const transactionAPI = {
+  list: (page = 1, pageSize = 20, filters?: any) =>
+    api.get<TransactionListResponse>('/transactions/', {
+      params: { page, page_size: pageSize, ...filters },
+    }),
+  create: (data: any) => api.post<Transaction>('/transactions/', data),
+  get: (id: number) => api.get<Transaction>(`/transactions/${id}`),
+  update: (id: number, data: any) => api.put<Transaction>(`/transactions/${id}`, data),
+  delete: (id: number) => api.delete(`/transactions/${id}`),
+  search: (query: string) => api.get<Transaction[]>('/transactions/search/query', { params: { q: query } }),
+  getHistory: (userId: number) => api.get<Transaction[]>(`/transactions/user/${userId}/history`),
+  getStats: () => api.get<TransactionStats>('/transactions/stats/summary'),
+  importCSV: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post('/transactions/import/csv', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+  exportCSV: () => api.get('/transactions/export/csv'),
 }
 
 export const dashboardAPI = {
   getOverview: () => api.get<DashboardOverview>('/dashboard/overview'),
-  getStatistics: () => api.get<any>('/dashboard/statistics'),
-  getRiskDistribution: () => api.get<RiskDistribution[]>('/dashboard/risk-distribution'),
-  getMonthlyStatistics: () => api.get<MonthlyStatistic[]>('/dashboard/monthly-statistics'),
-  getWeeklyStatistics: () => api.get<WeeklyStatistic[]>('/dashboard/weekly-statistics'),
-  getRecentActivity: (limit?: number) =>
-    api.get<RecentActivity[]>('/dashboard/recent-activity', { params: { limit } }),
-  getSummary: () => api.get<DashboardSummary>('/dashboard/summary'),
+  getSummary: () => api.get<any>('/dashboard/summary'),
 }
 
 export default api
