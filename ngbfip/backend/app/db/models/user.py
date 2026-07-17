@@ -1,11 +1,12 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text
+"""Update User model to include roles relationship."""
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base import Base
 
 
 class User(Base):
-    """User model with enhanced fields for profile management."""
+    """User model with enhanced fields for profile management and admin panel support."""
     
     __tablename__ = "users"
     
@@ -33,3 +34,10 @@ class User(Base):
     notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
     audit_logs = relationship("AuditLog", back_populates="user", cascade="all, delete-orphan")
     login_history = relationship("LoginHistory", back_populates="user", cascade="all, delete-orphan")
+    
+    # Role relationship via secondary table
+    roles = relationship(
+        "Role",
+        secondary="user_role_association",
+        back_populates="users"
+    )
