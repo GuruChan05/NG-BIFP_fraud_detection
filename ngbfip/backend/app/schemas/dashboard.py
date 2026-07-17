@@ -1,11 +1,44 @@
-"""Dashboard Pydantic schemas for response validation."""
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 from datetime import datetime
 
 
+class TransactionSummary(BaseModel):
+    id: int
+    user_id: int
+    amount: float
+    transaction_type: str
+    merchant: str
+    risk_score: float
+    is_fraudulent: str
+    created_at: str
+
+
+class DailySummary(BaseModel):
+    date: str
+    transactions: int
+    fraud_count: int
+    total_amount: float
+    fraud_percentage: float
+
+
+class FraudTrend(BaseModel):
+    date: str
+    fraud_count: int
+    total_count: int
+    fraud_rate: float
+
+
+class RiskDistribution(BaseModel):
+    very_low: int
+    low: int
+    medium: int
+    high: int
+    very_high: int
+    total: int
+
+
 class DashboardOverview(BaseModel):
-    """Dashboard overview statistics."""
     total_transactions: int
     fraud_cases: int
     active_users: int
@@ -14,61 +47,23 @@ class DashboardOverview(BaseModel):
     trusted_devices: int
     high_risk_transactions: int
     resolved_alerts: int
+    fraud_percentage: float
 
 
-class RiskDistribution(BaseModel):
-    """Risk distribution data."""
-    risk_level: str  # low, medium, high, critical
-    count: int
-    percentage: float
+class TransactionStats(BaseModel):
+    total_amount: float
+    average_amount: float
+    max_amount: float
+    min_amount: float
 
 
-class MonthlyStatistic(BaseModel):
-    """Monthly statistics data."""
-    month: str
-    transactions: int
-    fraud_cases: int
-    risk_score: float
+class UserStats(BaseModel):
+    total: int
+    active: int
+    admins: int
 
 
-class WeeklyStatistic(BaseModel):
-    """Weekly statistics data."""
-    week: str
-    transactions: int
-    fraud_cases: int
-    risk_score: float
-
-
-class RecentActivity(BaseModel):
-    """Recent activity/transaction data."""
-    id: int
-    user_id: int
-    amount: float
-    transaction_type: str
-    merchant: str
-    risk_score: float
-    is_fraudulent: str
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
-class DashboardStatistics(BaseModel):
-    """Dashboard statistics response."""
-    total_transactions: int
-    fraud_cases: int
-    average_risk_score: float
-    high_risk_transactions: int
-
-
-class DashboardSummary(BaseModel):
-    """Complete dashboard summary."""
-    overview: DashboardOverview
-    risk_distribution: List[RiskDistribution]
-    monthly_statistics: List[MonthlyStatistic]
-    weekly_statistics: List[WeeklyStatistic]
-    recent_activity: List[RecentActivity]
-
-    class Config:
-        from_attributes = True
+class SummaryStats(BaseModel):
+    transactions: TransactionStats
+    users: UserStats
+    risk_distribution: RiskDistribution

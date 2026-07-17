@@ -1,178 +1,102 @@
-"""Fraud prediction API endpoints."""
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List, Optional
 from app.db.base import get_db
-from app.api.deps import get_current_active_user
-from app.db.models.user import User
+from app.schemas.fraud_prediction import FraudPredictionResponse, FraudPredictionCreate
 from app.services.fraud_prediction import FraudPredictionService
-from app.schemas.fraud_prediction import (
-    FraudPredictionRequest,
-    FraudPredictionResponse,
-    PredictionHistoryResponse,
-    PredictionHistoryEntry,
-    BulkPredictionRequest,
-    BulkPredictionResponse,
-)
-import json
-from datetime import datetime
+from app.db.models.user import User
+from app.db.models.transaction import Transaction
+from app.api.deps import get_current_active_user
+from typing import List
 
 router = APIRouter()
-prediction_service = FraudPredictionService()
-
-
-@router.post("/predict", response_model=FraudPredictionResponse)
-async def predict_fraud(
-    request: FraudPredictionRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
-):
-    """
-    Predict fraud risk for a transaction.
-    
-    Returns risk score, confidence score, and explanation.
-    """
-    try:
-        prediction = prediction_service.predict(db, request)
-
-        return FraudPredictionResponse(
-            transaction_id=prediction.transaction_id,
-            risk_score=prediction.risk_score,
-            confidence_score=prediction.confidence_score,
-            is_fraudulent=prediction.is_fraudulent,
-            risk_level=prediction.risk_level,
-            explanation=prediction.explanation,
-            contributing_factors=json.loads(prediction.contributing_factors),
-            recommendations=json.loads(prediction.recommendations),
-            prediction_timestamp=prediction.created_at,
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error making prediction: {str(e)}",
-        )
-
-
-@router.post("/predict/bulk", response_model=BulkPredictionResponse)
-async def predict_fraud_bulk(
-    request: BulkPredictionRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
-):
-    """
-    Make fraud predictions for multiple transactions.
-    """
-    try:
-        predictions = []
-        successful = 0
-        failed = 0
-
-        for transaction_request in request.transactions:
-            try:
-                prediction = prediction_service.predict(db, transaction_request)
-                predictions.append(
-                    FraudPredictionResponse(
-                        transaction_id=prediction.transaction_id,
-                        risk_score=prediction.risk_score,
-                        confidence_score=prediction.confidence_score,
-                        is_fraudulent=prediction.is_fraudulent,
-                        risk_level=prediction.risk_level,
-                        explanation=prediction.explanation,
-                        contributing_factors=json.loads(prediction.contributing_factors),
-                        recommendations=json.loads(prediction.recommendations),
-                        prediction_timestamp=prediction.created_at,
-                    )
-                )
-                successful += 1
-            except Exception:
-                failed += 1
-
-        return BulkPredictionResponse(
-            total=len(request.transactions),
-            successful=successful,
-            failed=failed,
-            predictions=predictions,
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error processing bulk predictions: {str(e)}",
-        )
-
-
-@router.get("/history", response_model=PredictionHistoryResponse)
-async def get_prediction_history(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
-):
-    """
-    Get prediction history for the current user.
-    """
-    try:
-        predictions, total = prediction_service.get_user_prediction_history(
-            db, current_user.id, page=page, page_size=page_size
-        )
-
-        total_pages = (total + page_size - 1) // page_size
-
-        return PredictionHistoryResponse(
-            total=total,
-            page=page,
-            page_size=page_size,
-            total_pages=total_pages,
-            data=[
-                PredictionHistoryEntry(
-                    id=p.id,
-                    user_id=p.user_id,
-                    transaction_id=p.transaction_id,
-                    risk_score=p.risk_score,
-                    confidence_score=p.confidence_score,
-                    is_fraudulent=p.is_fraudulent,
-                    risk_level=p.risk_level,
-                    explanation=p.explanation,
-                    created_at=p.created_at,
-                )
-                for p in predictions
-            ],
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error fetching prediction history: {str(e)}",
-        )
 
 
 @router.get("/stats")
 async def get_prediction_stats(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Get fraud prediction statistics.
-    """
-    try:
-        stats = prediction_service.get_statistics(db)
-        return stats
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error fetching statistics: {str(e)}",
-        )
+    """Get fraud prediction statistics."""
+    return FraudPredictionService.get_prediction_stats(db)
 
 
-@router.get("/model/info")
-async def get_model_info(
-    current_user: User = Depends(get_current_active_user),
+@router.get("/", response_model=List[FraudPredictionResponse])
+async def list_predictions(
+    skip: int = 0,
+    limit: int = 20,
+    prediction: str = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Get information about the fraud detection model.
-    """
-    try:
-        return prediction_service.model.get_model_info()
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error fetching model info: {str(e)}",
-        )
+    """List fraud predictions with pagination."""
+    predictions, total = FraudPredictionService.list_predictions(
+        db, skip, limit, prediction
+    )
+    return predictions
+
+
+@router.get("/{prediction_id}", response_model=FraudPredictionResponse)
+async def get_prediction(
+    prediction_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get prediction by ID."""
+    prediction = FraudPredictionService.get_prediction(db, prediction_id)
+    if not prediction:
+        raise HTTPException(status_code=404, detail="Prediction not found")
+    return prediction
+
+
+@router.get("/transaction/{transaction_id}")
+async def get_transaction_predictions(
+    transaction_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get predictions for a specific transaction."""
+    # Verify transaction exists
+    transaction = db.query(Transaction).filter(
+        Transaction.id == transaction_id
+    ).first()
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    predictions = FraudPredictionService.get_transaction_predictions(
+        db, transaction_id
+    )
+    return predictions
+
+
+@router.post("/predict")
+async def predict_fraud(
+    transaction_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Run fraud prediction on a transaction."""
+    transaction = db.query(Transaction).filter(
+        Transaction.id == transaction_id
+    ).first()
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    # Generate prediction
+    prediction_data = FraudPredictionService.predict_fraud(transaction)
+    
+    # Store prediction
+    prediction = FraudPredictionService.create_prediction(
+        db=db,
+        transaction_id=transaction_id,
+        risk_score=prediction_data['risk_score'],
+        confidence_score=prediction_data['confidence_score'],
+        prediction=prediction_data['prediction'],
+        explanation=prediction_data['explanation']
+    )
+    
+    # Update transaction with prediction
+    transaction.risk_score = prediction_data['risk_score']
+    transaction.is_fraudulent = prediction_data['prediction']
+    db.commit()
+    
+    return prediction_data
