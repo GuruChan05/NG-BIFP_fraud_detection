@@ -89,4 +89,39 @@ export const dashboardAPI = {
   getSummary: () => api.get<any>('/dashboard/summary'),
 }
 
+export const authAPI = {
+  login: (email: string, password: string) =>
+    api.post('/auth/login', { email, password }),
+  register: (email: string, username: string, full_name: string, password: string, confirm_password: string) =>
+    api.post('/auth/register', { email, username, full_name, password, confirm_password }),
+  refresh: (refreshToken: string) =>
+    api.post('/auth/refresh', { refresh_token: refreshToken }),
+  logout: () => api.post('/auth/logout'),
+  changePassword: (old_password: string, new_password: string, confirm_password: string) =>
+    api.post('/auth/change-password', { old_password, new_password, confirm_password }),
+}
+
+export const userAPI = {
+  getCurrentUser: () => api.get('/users/me'),
+  updateProfile: (data: any) => api.put('/users/me', data),
+  getLoginHistory: (limit = 20) => api.get(`/users/me/login-history?limit=${limit}`),
+  getUser: (id: number) => api.get(`/users/${id}`),
+  createUser: (data: any) => api.post('/users/', data),
+  updateUser: (id: number, data: any) => api.put(`/users/${id}`, data),
+  deleteUser: (id: number) => api.delete(`/users/${id}`),
+  activateUser: (id: number) => api.post(`/users/${id}/activate`),
+  deactivateUser: (id: number) => api.post(`/users/${id}/deactivate`),
+  listUsers: (skip = 0, limit = 100) => api.get('/users/', { params: { skip, limit } }),
+}
+
+export const notificationAPI = {
+  list: () => api.get('/notifications/'),
+  get: (id: number) => api.get(`/notifications/${id}`),
+  create: (data: any) => api.post('/notifications/', data),
+  markAsRead: (id: number) => api.put(`/notifications/${id}/read`),
+  markAllAsRead: () => api.post('/notifications/mark-all-read'),
+  delete: (id: number) => api.delete(`/notifications/${id}`),
+  getUnreadCount: () => api.get('/notifications/unread/count'),
+}
+
 export default api
