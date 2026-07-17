@@ -1,162 +1,167 @@
-"""Fraud prediction service."""
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from typing import List, Dict, Tuple, Optional
-from datetime import datetime
-import json
 from app.db.models.fraud_prediction import FraudPrediction
 from app.db.models.transaction import Transaction
-from app.ml.default_model import DefaultFraudDetectionModel
-from app.schemas.fraud_prediction import FraudPredictionRequest
+from typing import Optional, List
+from datetime import datetime
+import random
 
 
 class FraudPredictionService:
-    """Service for fraud prediction and management."""
-
-    def __init__(self):
-        """Initialize the fraud prediction service."""
-        self.model = DefaultFraudDetectionModel()
-        self.model.load_model()
-
-    def predict(
-        self,
+    @staticmethod
+    def create_prediction(
         db: Session,
-        prediction_request: FraudPredictionRequest,
-        transaction_id: Optional[int] = None,
+        transaction_id: int,
+        risk_score: float,
+        confidence_score: float,
+        prediction: str,
+        explanation: str = None
     ) -> FraudPrediction:
-        """Make a fraud prediction for a transaction.
-        
-        Args:
-            db: Database session
-            prediction_request: Prediction request data
-            transaction_id: Optional transaction ID if updating existing transaction
-            
-        Returns:
-            FraudPrediction: Stored prediction result
-        """
-        # Prepare features for the model
-        features = {
-            "amount": prediction_request.amount,
-            "transaction_type": prediction_request.transaction_type,
-            "merchant": prediction_request.merchant,
-            "merchant_category": prediction_request.merchant_category,
-            "location": prediction_request.location,
-            "device_id": prediction_request.device_id,
-            "is_trusted_device": self._is_trusted_device(db, prediction_request.device_id),
-        }
-
-        # Get prediction from model
-        risk_score, confidence_score = self.model.predict(features)
-
-        # Get explanation
-        contributing_factors, recommendations = self.model.get_explanation(features)
-
-        # Determine fraud status
-        is_fraudulent = self._classify_fraud_status(risk_score)
-        risk_level = self._get_risk_level(risk_score)
-
-        # Create prediction record
-        prediction = FraudPrediction(
-            user_id=prediction_request.user_id,
+        """Create a fraud prediction."""
+        pred = FraudPrediction(
             transaction_id=transaction_id,
             risk_score=risk_score,
             confidence_score=confidence_score,
-            is_fraudulent=is_fraudulent,
-            risk_level=risk_level,
-            explanation=self._generate_explanation(risk_score, is_fraudulent),
-            contributing_factors=json.dumps(contributing_factors),
-            recommendations=json.dumps(recommendations),
-            model_name=self.model.model_name,
-            model_version="1.0",
+            prediction=prediction,
+            explanation=explanation or ""
         )
-
-        db.add(prediction)
+        db.add(pred)
         db.commit()
-        db.refresh(prediction)
-
-        return prediction
-
+        db.refresh(pred)
+        return pred
+    
+    @staticmethod
     def get_prediction(db: Session, prediction_id: int) -> Optional[FraudPrediction]:
-        """Get a specific prediction."""
-        return db.query(FraudPrediction).filter(
-            FraudPrediction.id == prediction_id
-        ).first()
-
-    def get_user_prediction_history(
-        self,
+        """Get prediction by ID."""
+        return db.query(FraudPrediction).filter(FraudPrediction.id == prediction_id).first()
+    
+    @staticmethod
+    def get_transaction_predictions(
         db: Session,
-        user_id: int,
-        page: int = 1,
-        page_size: int = 20,
-    ) -> Tuple[List[FraudPrediction], int]:
-        """Get prediction history for a user."""
-        query = db.query(FraudPrediction).filter(
-            FraudPrediction.user_id == user_id
-        ).order_by(FraudPrediction.created_at.desc())
-
+        transaction_id: int
+    ) -> List[FraudPrediction]:
+        """Get predictions for a transaction."""
+        return db.query(FraudPrediction).filter(
+            FraudPrediction.transaction_id == transaction_id
+        ).order_by(FraudPrediction.created_at.desc()).all()
+    
+    @staticmethod
+    def list_predictions(
+        db: Session,
+        skip: int = 0,
+        limit: int = 20,
+        prediction: Optional[str] = None
+    ) -> tuple:
+        """List fraud predictions with pagination."""
+        query = db.query(FraudPrediction)
+        
+        if prediction:
+            query = query.filter(FraudPrediction.prediction == prediction)
+        
         total = query.count()
-        skip = (page - 1) * page_size
-        predictions = query.offset(skip).limit(page_size).all()
-
+        predictions = query.order_by(
+            FraudPrediction.created_at.desc()
+        ).offset(skip).limit(limit).all()
+        
         return predictions, total
-
-    def get_statistics(self, db: Session) -> Dict[str, any]:
+    
+    @staticmethod
+    def get_prediction_stats(db: Session) -> dict:
         """Get fraud prediction statistics."""
         total_predictions = db.query(func.count(FraudPrediction.id)).scalar() or 0
-        fraudulent_count = db.query(func.count(FraudPrediction.id)).filter(
-            FraudPrediction.is_fraudulent == "fraudulent"
+        fraud_predictions = db.query(func.count(FraudPrediction.id)).filter(
+            FraudPrediction.prediction == 'Fraud'
         ).scalar() or 0
-        average_risk = db.query(func.avg(FraudPrediction.risk_score)).scalar() or 0.0
-        average_confidence = db.query(func.avg(FraudPrediction.confidence_score)).scalar() or 0.0
-
+        legitimate_predictions = db.query(func.count(FraudPrediction.id)).filter(
+            FraudPrediction.prediction == 'Legitimate'
+        ).scalar() or 0
+        
+        avg_confidence = db.query(func.avg(FraudPrediction.confidence_score)).scalar() or 0
+        avg_risk = db.query(func.avg(FraudPrediction.risk_score)).scalar() or 0
+        
         return {
-            "total_predictions": total_predictions,
-            "fraudulent_count": fraudulent_count,
-            "fraud_percentage": (fraudulent_count / total_predictions * 100) if total_predictions > 0 else 0,
-            "average_risk_score": round(average_risk, 3),
-            "average_confidence_score": round(average_confidence, 3),
+            'total_predictions': total_predictions,
+            'fraud_predictions': fraud_predictions,
+            'legitimate_predictions': legitimate_predictions,
+            'average_confidence': round(float(avg_confidence), 2),
+            'average_risk_score': round(float(avg_risk), 2),
+            'fraud_detection_rate': round(
+                (fraud_predictions / total_predictions * 100), 2
+            ) if total_predictions > 0 else 0
         }
-
+    
     @staticmethod
-    def _is_trusted_device(db: Session, device_id: Optional[str]) -> bool:
-        """Check if a device is trusted."""
-        if not device_id:
-            return True
-
-        from app.db.models.device import Device
-        device = db.query(Device).filter(
-            Device.id == device_id
-        ).first()
-        return device.is_trusted if device else False
-
-    @staticmethod
-    def _classify_fraud_status(risk_score: float) -> str:
-        """Classify fraud status based on risk score."""
-        if risk_score >= 0.8:
-            return "fraudulent"
-        elif risk_score >= 0.5:
-            return "suspicious"
+    def predict_fraud(transaction: Transaction) -> dict:
+        """Simple ML-based fraud prediction (placeholder for real model)."""
+        # In production, this would use a trained ML model
+        risk_score = FraudPredictionService._calculate_risk_score(transaction)
+        
+        # Determine prediction based on risk score
+        if risk_score >= 70:
+            prediction = 'Fraud'
+            confidence = min(0.95, 0.5 + (risk_score / 200))
         else:
-            return "legitimate"
-
+            prediction = 'Legitimate'
+            confidence = min(0.95, 0.5 + ((100 - risk_score) / 200))
+        
+        explanation = FraudPredictionService._generate_explanation(
+            transaction, risk_score
+        )
+        
+        return {
+            'risk_score': risk_score,
+            'confidence_score': round(confidence, 3),
+            'prediction': prediction,
+            'explanation': explanation
+        }
+    
     @staticmethod
-    def _get_risk_level(risk_score: float) -> str:
-        """Get risk level based on score."""
-        if risk_score < 0.3:
-            return "low"
-        elif risk_score < 0.6:
-            return "medium"
-        elif risk_score < 0.8:
-            return "high"
-        else:
-            return "critical"
-
+    def _calculate_risk_score(transaction: Transaction) -> float:
+        """Calculate risk score based on transaction features."""
+        risk_score = 0
+        
+        # Amount-based risk
+        if transaction.amount > 10000:
+            risk_score += 25
+        elif transaction.amount > 5000:
+            risk_score += 15
+        elif transaction.amount > 1000:
+            risk_score += 5
+        
+        # Transaction type risk
+        high_risk_types = ['Wire Transfer', 'International', 'Cryptocurrency']
+        if transaction.transaction_type in high_risk_types:
+            risk_score += 20
+        
+        # Merchant category risk
+        high_risk_merchants = ['Gambling', 'Adult', 'Forex']
+        if transaction.merchant_category in high_risk_merchants:
+            risk_score += 15
+        
+        # Time-based risk (late night transactions)
+        if transaction.created_at.hour in [0, 1, 2, 3, 4, 5]:
+            risk_score += 10
+        
+        # Add some randomness for demo purposes
+        risk_score += random.uniform(-5, 5)
+        
+        return max(0, min(100, risk_score))
+    
     @staticmethod
-    def _generate_explanation(risk_score: float, is_fraudulent: str) -> str:
-        """Generate human-readable explanation."""
-        if is_fraudulent == "fraudulent":
-            return f"High fraud risk detected. Risk score: {risk_score:.2%}. Transaction should be reviewed immediately."
-        elif is_fraudulent == "suspicious":
-            return f"Suspicious activity detected. Risk score: {risk_score:.2%}. Additional verification recommended."
-        else:
-            return f"Transaction appears legitimate. Risk score: {risk_score:.2%}."
+    def _generate_explanation(transaction: Transaction, risk_score: float) -> str:
+        """Generate human-readable explanation for the prediction."""
+        factors = []
+        
+        if transaction.amount > 5000:
+            factors.append(f"High transaction amount: ${transaction.amount}")
+        
+        if transaction.transaction_type in ['Wire Transfer', 'International']:
+            factors.append(f"High-risk transaction type: {transaction.transaction_type}")
+        
+        if transaction.merchant_category:
+            factors.append(f"Merchant category: {transaction.merchant_category}")
+        
+        if risk_score >= 70:
+            factors.append("Multiple risk indicators detected")
+        
+        return "; ".join(factors) if factors else "Standard transaction"

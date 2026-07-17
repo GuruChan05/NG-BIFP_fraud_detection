@@ -1,17 +1,22 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Layout from '@/components/Layout'
 import LoginPage from '@/pages/LoginPage'
+import SignUpPage from '@/pages/SignUpPage'
 import DashboardPage from '@/pages/DashboardPage'
 import TransactionsPage from '@/pages/TransactionsPage'
 import AlertsPage from '@/pages/AlertsPage'
 import DevicesPage from '@/pages/DevicesPage'
 import AnalyticsPage from '@/pages/AnalyticsPage'
+import UserProfilePage from '@/pages/UserProfilePage'
+import ChangePasswordPage from '@/pages/ChangePasswordPage'
+import FraudDetectionPage from '@/pages/FraudDetectionPage'
 import ProtectedRoute from '@/components/ProtectedRoute'
 
 function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<SignUpPage />} />
       <Route
         path="/"
         element={
@@ -58,6 +63,36 @@ function App() {
           <ProtectedRoute>
             <Layout>
               <AnalyticsPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/fraud-detection"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <FraudDetectionPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <UserProfilePage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/change-password"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <ChangePasswordPage />
             </Layout>
           </ProtectedRoute>
         }

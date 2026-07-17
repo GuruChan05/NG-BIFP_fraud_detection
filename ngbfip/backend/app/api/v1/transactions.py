@@ -1,322 +1,225 @@
-"""Transaction API endpoints with CRUD operations."""
-from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
-from typing import List, Optional
 from app.db.base import get_db
-from app.api.deps import get_current_active_user
-from app.db.models.user import User
-from app.services.transaction import TransactionService
 from app.schemas.transaction import (
-    TransactionCreate,
-    TransactionUpdate,
-    TransactionResponse,
-    TransactionListResponse,
-    TransactionStats,
-    BulkImportResponse,
+    TransactionResponse, TransactionCreate, TransactionUpdate, TransactionListResponse
 )
+from app.services.transaction import TransactionService
+from app.services.fraud_prediction import FraudPredictionService
+from app.db.models.user import User
+from app.db.models.transaction import Transaction
+from app.api.deps import get_current_active_user
+from typing import Optional, List
+import csv
+import io
 
 router = APIRouter()
+
+
+@router.get("/", response_model=TransactionListResponse)
+async def list_transactions(
+    skip: int = 0,
+    limit: int = 20,
+    user_id: Optional[int] = None,
+    merchant: Optional[str] = None,
+    is_fraudulent: Optional[str] = None,
+    min_amount: Optional[float] = None,
+    max_amount: Optional[float] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """List transactions with filters and pagination."""
+    transactions, total = TransactionService.list_transactions(
+        db=db,
+        skip=skip,
+        limit=limit,
+        user_id=user_id,
+        merchant=merchant,
+        is_fraudulent=is_fraudulent,
+        min_amount=min_amount,
+        max_amount=max_amount
+    )
+    
+    return {
+        "total": total,
+        "page": skip // limit + 1,
+        "page_size": limit,
+        "total_pages": (total + limit - 1) // limit,
+        "data": transactions
+    }
+
+
+@router.get("/search")
+async def search_transactions(
+    q: str,
+    limit: int = 20,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Search transactions by merchant or other fields."""
+    transactions = TransactionService.search_transactions(db, q, limit)
+    return transactions
 
 
 @router.post("/", response_model=TransactionResponse)
 async def create_transaction(
     transaction: TransactionCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Create a new transaction.
+    """Create a new transaction."""
+    new_transaction = TransactionService.create_transaction(
+        db=db,
+        **transaction.dict()
+    )
     
-    Validates the transaction data and creates it in the database.
-    """
-    try:
-        is_valid, errors = TransactionService.validate_transaction(transaction)
-        if not is_valid:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail={"errors": errors},
-            )
-        
-        db_transaction = TransactionService.create_transaction(db, transaction)
-        return TransactionResponse.from_orm(db_transaction)
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error creating transaction: {str(e)}",
-        )
+    # Generate fraud prediction
+    prediction = FraudPredictionService.predict_fraud(new_transaction)
+    new_transaction.risk_score = prediction['risk_score']
+    new_transaction.is_fraudulent = prediction['prediction']
+    db.commit()
+    
+    return new_transaction
 
 
 @router.get("/{transaction_id}", response_model=TransactionResponse)
 async def get_transaction(
     transaction_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Get a transaction by ID.
-    """
-    try:
-        db_transaction = TransactionService.get_transaction(db, transaction_id)
-        if not db_transaction:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Transaction not found",
-            )
-        return TransactionResponse.from_orm(db_transaction)
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error fetching transaction: {str(e)}",
-        )
+    """Get transaction by ID."""
+    transaction = TransactionService.get_transaction(db, transaction_id)
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    return transaction
 
 
 @router.put("/{transaction_id}", response_model=TransactionResponse)
 async def update_transaction(
     transaction_id: int,
-    transaction: TransactionUpdate,
+    transaction_data: TransactionUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Update a transaction.
-    """
-    try:
-        db_transaction = TransactionService.update_transaction(
-            db, transaction_id, transaction
-        )
-        if not db_transaction:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Transaction not found",
-            )
-        return TransactionResponse.from_orm(db_transaction)
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error updating transaction: {str(e)}",
-        )
+    """Update transaction."""
+    transaction = TransactionService.update_transaction(
+        db=db,
+        transaction_id=transaction_id,
+        **transaction_data.dict(exclude_unset=True)
+    )
+    
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    return transaction
 
 
-@router.delete("/{transaction_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{transaction_id}")
 async def delete_transaction(
     transaction_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Delete a transaction.
-    """
-    try:
-        success = TransactionService.delete_transaction(db, transaction_id)
-        if not success:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Transaction not found",
-            )
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error deleting transaction: {str(e)}",
-        )
+    """Delete transaction."""
+    success = TransactionService.delete_transaction(db, transaction_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    return {"message": "Transaction deleted successfully"}
 
 
-@router.get("/", response_model=TransactionListResponse)
-async def list_transactions(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-    user_id: Optional[int] = Query(None),
-    fraud_status: Optional[str] = Query(None),
-    min_amount: Optional[float] = Query(None),
-    max_amount: Optional[float] = Query(None),
-    merchant: Optional[str] = Query(None),
-    search: Optional[str] = Query(None),
-    sort_by: str = Query("created_at"),
-    sort_order: str = Query("desc"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
-):
-    """
-    List transactions with filtering, searching, and pagination.
-    
-    Query parameters:
-    - page: Page number (default: 1)
-    - page_size: Number of items per page (default: 20, max: 100)
-    - user_id: Filter by user ID
-    - fraud_status: Filter by fraud status (unknown, legitimate, fraudulent)
-    - min_amount: Filter by minimum amount
-    - max_amount: Filter by maximum amount
-    - merchant: Filter by merchant name (substring match)
-    - search: Search in merchant, location, device_id
-    - sort_by: Sort field (created_at, amount, risk_score)
-    - sort_order: Sort order (asc, desc)
-    """
-    try:
-        transactions, total = TransactionService.list_transactions(
-            db,
-            page=page,
-            page_size=page_size,
-            user_id=user_id,
-            fraud_status=fraud_status,
-            min_amount=min_amount,
-            max_amount=max_amount,
-            merchant=merchant,
-            search=search,
-            sort_by=sort_by,
-            sort_order=sort_order,
-        )
-        
-        total_pages = (total + page_size - 1) // page_size
-        
-        return TransactionListResponse(
-            total=total,
-            page=page,
-            page_size=page_size,
-            total_pages=total_pages,
-            data=[TransactionResponse.from_orm(t) for t in transactions],
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error fetching transactions: {str(e)}",
-        )
-
-
-@router.get("/search/query", response_model=List[TransactionResponse])
-async def search_transactions(
-    q: str = Query(..., min_length=1),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
-):
-    """
-    Search transactions by merchant, location, or device ID.
-    """
-    try:
-        transactions = TransactionService.search_transactions(db, q)
-        return [TransactionResponse.from_orm(t) for t in transactions]
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error searching transactions: {str(e)}",
-        )
-
-
-@router.get("/user/{user_id}/history", response_model=List[TransactionResponse])
-async def get_user_transaction_history(
+@router.get("/user/{user_id}")
+async def get_user_transactions(
     user_id: int,
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = 50,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Get transaction history for a specific user.
-    """
-    try:
-        transactions = TransactionService.get_transaction_history(
-            db, user_id=user_id, limit=limit
-        )
-        return [TransactionResponse.from_orm(t) for t in transactions]
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error fetching transaction history: {str(e)}",
-        )
+    """Get transactions for a specific user."""
+    transactions = TransactionService.get_user_transactions(db, user_id, limit)
+    return transactions
 
 
-@router.get("/stats/summary", response_model=TransactionStats)
-async def get_transaction_statistics(
+@router.get("/fraud/list")
+async def get_fraud_transactions(
+    limit: int = 50,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Get transaction statistics.
-    """
-    try:
-        stats = TransactionService.get_statistics(db)
-        return stats
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error fetching statistics: {str(e)}",
-        )
+    """Get fraudulent transactions."""
+    transactions = TransactionService.get_fraud_transactions(db, limit)
+    return transactions
 
 
-@router.post("/import/csv", response_model=BulkImportResponse)
-async def import_transactions_csv(
+@router.get("/high-risk/list")
+async def get_high_risk_transactions(
+    threshold: float = 70,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get high-risk transactions."""
+    transactions = TransactionService.get_high_risk_transactions(db, threshold, limit)
+    return transactions
+
+
+@router.post("/import/csv")
+async def import_transactions(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Import transactions from a CSV file.
-    
-    Expected CSV columns:
-    - user_id (int)
-    - amount (float)
-    - transaction_type (debit, credit, transfer)
-    - merchant (string)
-    - merchant_category (optional)
-    - location (optional)
-    - device_id (optional)
-    - risk_score (optional, float 0-1)
-    - is_fraudulent (optional, unknown/legitimate/fraudulent)
-    """
+    """Import transactions from CSV file."""
     try:
-        if file.content_type != "text/csv":
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="File must be a CSV file",
+        contents = await file.read()
+        stream = io.StringIO(contents.decode('utf-8'))
+        csv_reader = csv.DictReader(stream)
+        
+        count = 0
+        for row in csv_reader:
+            transaction = TransactionService.create_transaction(
+                db=db,
+                user_id=int(row.get('user_id', 1)),
+                amount=float(row.get('amount', 0)),
+                transaction_type=row.get('transaction_type', ''),
+                merchant=row.get('merchant', ''),
+                merchant_category=row.get('merchant_category'),
+                location=row.get('location'),
+                device_id=row.get('device_id'),
+                is_fraudulent=row.get('is_fraudulent', 'Unknown')
             )
+            count += 1
         
-        content = await file.read()
-        csv_content = content.decode("utf-8")
-        
-        results = TransactionService.import_transactions_from_csv(db, csv_content)
-        
-        return BulkImportResponse(
-            total_imported=results["total_imported"],
-            successful=results["successful"],
-            failed=results["failed"],
-            errors=results["errors"][:10],  # Return first 10 errors
-        )
-    except HTTPException:
-        raise
+        return {"message": f"Imported {count} transactions successfully"}
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error importing transactions: {str(e)}",
-        )
+        raise HTTPException(status_code=400, detail=f"Import failed: {str(e)}")
 
 
 @router.get("/export/csv")
-async def export_transactions_csv(
-    user_id: Optional[int] = Query(None),
+async def export_transactions(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Export transactions to CSV format.
+    """Export transactions as CSV file."""
+    transactions = db.query(Transaction).all()
     
-    Optional: Filter by user_id
-    """
-    try:
-        csv_content = TransactionService.export_transactions_to_csv(
-            db, user_id=user_id
-        )
-        
-        return {
-            "content": csv_content,
-            "filename": f"transactions_{current_user.id}.csv",
-        }
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error exporting transactions: {str(e)}",
-        )
+    output = io.StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=['id', 'user_id', 'amount', 'transaction_type', 'merchant', 'risk_score', 'is_fraudulent', 'created_at']
+    )
+    writer.writeheader()
+    
+    for tx in transactions:
+        writer.writerow({
+            'id': tx.id,
+            'user_id': tx.user_id,
+            'amount': tx.amount,
+            'transaction_type': tx.transaction_type,
+            'merchant': tx.merchant,
+            'risk_score': tx.risk_score,
+            'is_fraudulent': tx.is_fraudulent,
+            'created_at': tx.created_at
+        })
+    
+    return {"csv": output.getvalue()}

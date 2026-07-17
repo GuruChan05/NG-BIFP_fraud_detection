@@ -1,234 +1,211 @@
-import { useState } from 'react'
-import { useTransactions } from '@/hooks/useTransactions'
-import { Search, Download, Upload, ChevronLeft, ChevronRight } from 'lucide-react'
-import Card from '@/components/Card'
-import './TransactionsPage.css'
+import { useState, useEffect } from 'react'
+import { Search, FileDown, Filter, ChevronLeft, ChevronRight } from 'lucide-react'
+import { transactionAPI } from '@/lib/api'
+import '../styles/TransactionsPage.css'
+
+interface Transaction {
+  id: number
+  user_id: number
+  amount: number
+  transaction_type: string
+  merchant: string
+  risk_score: number
+  is_fraudulent: string
+  created_at: string
+}
 
 function TransactionsPage() {
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
-  const [filters, setFilters] = useState<any>({})
-  const [searchTerm, setSearchTerm] = useState('')
-  const [sortBy, setSortBy] = useState('created_at')
-  const [sortOrder, setSortOrder] = useState('desc')
-
-  const { data: transactions, isLoading, error } = useTransactions(page, pageSize, {
-    ...filters,
-    sort_by: sortBy,
-    sort_order: sortOrder,
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [totalTransactions, setTotalTransactions] = useState(0)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filters, setFilters] = useState({
+    is_fraudulent: '',
+    min_amount: '',
+    max_amount: '',
   })
+  const pageSize = 20
 
-  const handleFilterChange = (key: string, value: any) => {
-    setFilters((prev: any) => ({ ...prev, [key]: value }))
-    setPage(1)
-  }
+  useEffect(() => {
+    const loadTransactions = async () => {
+      try {
+        setIsLoading(true)
+        const response = await transactionAPI.list(
+          currentPage,
+          pageSize,
+          {
+            merchant: searchQuery || undefined,
+            is_fraudulent: filters.is_fraudulent || undefined,
+            min_amount: filters.min_amount ? parseFloat(filters.min_amount) : undefined,
+            max_amount: filters.max_amount ? parseFloat(filters.max_amount) : undefined,
+          }
+        )
+        setTransactions(response.data.data)
+        setTotalTransactions(response.data.total)
+      } catch (err) {
+        setError('Failed to load transactions')
+      } finally {
+        setIsLoading(false)
+      }
+    }
 
-  const handleSearch = (term: string) => {
-    setSearchTerm(term)
-    if (term) {
-      handleFilterChange('search', term)
-    } else {
-      const newFilters = { ...filters }
-      delete newFilters.search
-      setFilters(newFilters)
+    loadTransactions()
+  }, [currentPage, searchQuery, filters])
+
+  const handleExport = async () => {
+    try {
+      const response = await transactionAPI.exportCSV()
+      const csv = response.data.csv
+      const blob = new Blob([csv], { type: 'text/csv' })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `transactions-${new Date().toISOString()}.csv`
+      a.click()
+    } catch (err) {
+      setError('Failed to export transactions')
     }
   }
 
-  const handleSort = (field: string) => {
-    if (sortBy === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortBy(field)
-      setSortOrder('asc')
-    }
+  const getRiskColor = (riskScore: number) => {
+    if (riskScore < 30) return '#4caf50'
+    if (riskScore < 70) return '#ffc107'
+    return '#ff6b6b'
   }
 
-  if (error) {
-    return (
-      <div className="transactions-page">
-        <h1>Transactions</h1>
-        <div className="error-state">
-          <p>Error loading transactions</p>
-        </div>
-      </div>
-    )
-  }
+  const totalPages = Math.ceil(totalTransactions / pageSize)
 
   return (
     <div className="transactions-page">
-      <div className="page-header">
+      {error && <div className="error-alert">{error}</div>}
+
+      <div className="transactions-header">
         <h1>Transactions</h1>
-        <div className="header-actions">
-          <button className="btn btn-secondary">
-            <Upload size={18} /> Import CSV
-          </button>
-          <button className="btn btn-secondary">
-            <Download size={18} /> Export CSV
-          </button>
+        <button className="export-btn" onClick={handleExport}>
+          <FileDown size={18} />
+          Export CSV
+        </button>
+      </div>
+
+      {/* Search and Filters */}
+      <div className="filters-section">
+        <div className="search-box">
+          <Search size={18} />
+          <input
+            type="text"
+            placeholder="Search by merchant..."
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value)
+              setCurrentPage(1)
+            }}
+          />
+        </div>
+
+        <div className="filter-controls">
+          <select
+            value={filters.is_fraudulent}
+            onChange={(e) => {
+              setFilters({ ...filters, is_fraudulent: e.target.value })
+              setCurrentPage(1)
+            }}
+          >
+            <option value="">All Status</option>
+            <option value="Yes">Fraudulent</option>
+            <option value="No">Legitimate</option>
+          </select>
+
+          <input
+            type="number"
+            placeholder="Min Amount"
+            value={filters.min_amount}
+            onChange={(e) => {
+              setFilters({ ...filters, min_amount: e.target.value })
+              setCurrentPage(1)
+            }}
+          />
+
+          <input
+            type="number"
+            placeholder="Max Amount"
+            value={filters.max_amount}
+            onChange={(e) => {
+              setFilters({ ...filters, max_amount: e.target.value })
+              setCurrentPage(1)
+            }}
+          />
         </div>
       </div>
 
-      <Card title="Transaction Filters" className="filters-card">
-        <div className="filters-grid">
-          <div className="filter-input">
-            <label>Search</label>
-            <div className="search-box">
-              <Search size={18} />
-              <input
-                type="text"
-                placeholder="Search merchant, location, device..."
-                value={searchTerm}
-                onChange={(e) => handleSearch(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="filter-input">
-            <label>Fraud Status</label>
-            <select
-              value={filters.fraud_status || ''}
-              onChange={(e) => handleFilterChange('fraud_status', e.target.value || undefined)}
-            >
-              <option value="">All</option>
-              <option value="legitimate">Legitimate</option>
-              <option value="fraudulent">Fraudulent</option>
-              <option value="unknown">Unknown</option>
-            </select>
-          </div>
-
-          <div className="filter-input">
-            <label>Min Amount</label>
-            <input
-              type="number"
-              placeholder="Min"
-              value={filters.min_amount || ''}
-              onChange={(e) =>
-                handleFilterChange('min_amount', e.target.value ? parseFloat(e.target.value) : undefined)
-              }
-            />
-          </div>
-
-          <div className="filter-input">
-            <label>Max Amount</label>
-            <input
-              type="number"
-              placeholder="Max"
-              value={filters.max_amount || ''}
-              onChange={(e) =>
-                handleFilterChange('max_amount', e.target.value ? parseFloat(e.target.value) : undefined)
-              }
-            />
-          </div>
-
-          <div className="filter-input">
-            <label>Merchant</label>
-            <input
-              type="text"
-              placeholder="Merchant name"
-              value={filters.merchant || ''}
-              onChange={(e) => handleFilterChange('merchant', e.target.value || undefined)}
-            />
-          </div>
-
-          <div className="filter-input">
-            <label>Page Size</label>
-            <select value={pageSize} onChange={(e) => setPageSize(parseInt(e.target.value))}>
-              <option value={10}>10</option>
-              <option value={20}>20</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-          </div>
-        </div>
-      </Card>
-
-      <Card title="Transaction List" className="transactions-card">
+      {/* Transactions Table */}
+      <div className="transactions-table-container">
         {isLoading ? (
           <div className="loading">Loading transactions...</div>
-        ) : transactions?.data && transactions.data.length > 0 ? (
+        ) : (
           <>
-            <div className="table-wrapper">
-              <table className="transactions-table">
-                <thead>
-                  <tr>
-                    <th onClick={() => handleSort('created_at')} style={{ cursor: 'pointer' }}>
-                      Date {sortBy === 'created_at' && (sortOrder === 'asc' ? '↑' : '↓')}
-                    </th>
-                    <th>User ID</th>
-                    <th onClick={() => handleSort('amount')} style={{ cursor: 'pointer' }}>
-                      Amount {sortBy === 'amount' && (sortOrder === 'asc' ? '↑' : '↓')}
-                    </th>
-                    <th>Type</th>
-                    <th>Merchant</th>
-                    <th>Location</th>
-                    <th onClick={() => handleSort('risk_score')} style={{ cursor: 'pointer' }}>
-                      Risk {sortBy === 'risk_score' && (sortOrder === 'asc' ? '↑' : '↓')}
-                    </th>
-                    <th>Status</th>
+            <table className="transactions-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Merchant</th>
+                  <th>Type</th>
+                  <th>Amount</th>
+                  <th>Risk Score</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {transactions.map((tx) => (
+                  <tr key={tx.id}>
+                    <td>#{tx.id}</td>
+                    <td>{tx.merchant}</td>
+                    <td>{tx.transaction_type}</td>
+                    <td>${tx.amount.toFixed(2)}</td>
+                    <td>
+                      <span
+                        className="risk-badge"
+                        style={{ backgroundColor: getRiskColor(tx.risk_score) + '20', color: getRiskColor(tx.risk_score) }}
+                      >
+                        {tx.risk_score.toFixed(1)}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`status-badge ${tx.is_fraudulent === 'Yes' ? 'fraudulent' : 'legitimate'}`}>
+                        {tx.is_fraudulent === 'Yes' ? '⚠️ Fraud' : '✓ Legitimate'}
+                      </span>
+                    </td>
+                    <td>{new Date(tx.created_at).toLocaleDateString()}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {transactions.data.map((transaction) => (
-                    <tr key={transaction.id}>
-                      <td>{new Date(transaction.created_at).toLocaleDateString()}</td>
-                      <td>#{transaction.user_id}</td>
-                      <td>${transaction.amount.toFixed(2)}</td>
-                      <td>
-                        <span className="badge badge-info">{transaction.transaction_type}</span>
-                      </td>
-                      <td>{transaction.merchant}</td>
-                      <td>{transaction.location || '-'}</td>
-                      <td>
-                        <span className={`risk-badge risk-${getRiskLevel(transaction.risk_score)}`}>
-                          {(transaction.risk_score * 100).toFixed(0)}%
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`status-badge status-${transaction.is_fraudulent}`}>
-                          {transaction.is_fraudulent}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
 
+            {/* Pagination */}
             <div className="pagination">
               <button
-                className="btn btn-sm"
-                onClick={() => setPage(Math.max(1, page - 1))}
-                disabled={page === 1}
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
               >
-                <ChevronLeft size={18} /> Previous
+                <ChevronLeft size={18} />
               </button>
-
-              <span className="page-info">
-                Page {transactions.page} of {transactions.total_pages} (Total: {transactions.total})
+              <span>
+                Page {currentPage} of {totalPages}
               </span>
-
               <button
-                className="btn btn-sm"
-                onClick={() => setPage(Math.min(transactions.total_pages, page + 1))}
-                disabled={page === transactions.total_pages}
+                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
               >
-                Next <ChevronRight size={18} />
+                <ChevronRight size={18} />
               </button>
             </div>
           </>
-        ) : (
-          <div className="empty-state">No transactions found</div>
         )}
-      </Card>
+      </div>
     </div>
   )
-}
-
-function getRiskLevel(score: number): string {
-  if (score < 0.3) return 'low'
-  if (score < 0.6) return 'medium'
-  if (score < 0.8) return 'high'
-  return 'critical'
 }
 
 export default TransactionsPage
