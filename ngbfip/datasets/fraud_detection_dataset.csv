@@ -1,0 +1,6 @@
+transaction_id,user_id,amount,merchant,merchant_category,location,device_type,os,browser,transaction_type,is_fraudulent
+1,1,150.50,Amazon,Electronics,USA-CA,mobile,iOS,Safari,debit,0
+2,2,45.00,Starbucks,Cafe,USA-NY,mobile,Android,Chrome,credit,0
+3,3,999.99,Best Buy,Electronics,USA-TX,desktop,Windows,Chrome,debit,1
+4,1,25.75,McDonald's,Food,USA-CA,mobile,iOS,Safari,credit,0
+5,4,5000.00,Wire Transfer,Finance,Nigeria-Lagos,desktop,Windows,Firefox,debit,1
