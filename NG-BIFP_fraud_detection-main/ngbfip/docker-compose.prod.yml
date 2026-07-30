@@ -1,0 +1,63 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ng_bifp_db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ng_bifp}
+      POSTGRES_USER: ${POSTGRES_USER:-bifp_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - ng_bifp_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bifp_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ng_bifp_api
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-bifp_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-ng_bifp}
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
+      DEBUG: "False"
+      CORS_ORIGINS: '["http://localhost:3000","http://localhost:5173","http://localhost"]'
+      ACCESS_TOKEN_EXPIRE_MINUTES: "60"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    networks:
+      - ng_bifp_network
+    volumes:
+      - ./backend:/app
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:8000/api/v1
+    container_name: ng_bifp_web
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    networks:
+      - ng_bifp_network
+
+volumes:
+  postgres_data:
+
+networks:
+  ng_bifp_network:
+    driver: bridge
